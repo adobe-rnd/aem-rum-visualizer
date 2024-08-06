@@ -73,10 +73,10 @@ async function fetchLastMonth(domain, checkpoints) {
 
 /////
 /////
-async function fetchSpecificBundles(domain, interval, endDate, checkpoints) {
+async function fetchSpecificBundles(domain, interval, endDate, key, checkpoints) {
   const BATCH_SIZE = 10;
   const HOURS = 24;
-  const domainKey = 1; // insert petplace domain key here
+  const domainKey = key // insert petplace domain key here
   const chunks = [];
   const urls = [];
 
@@ -135,7 +135,7 @@ async function fetchSpecificBundles(domain, interval, endDate, checkpoints) {
   return chunks.flatMap((chunk) => chunk.rumBundles);
 }
 
-async function fetchDateRange(domain, startDate, endDate, checkpoints) {
+async function fetchDateRange(domain, startDate, endDate, domainKey, checkpoints) {
 
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -159,7 +159,7 @@ async function fetchDateRange(domain, startDate, endDate, checkpoints) {
 
   const change = end - start;
   const range = change / millisecondsPerDay;
-  return fetchSpecificBundles(domain, range, endDate, checkpoints);
+  return fetchSpecificBundles(domain, range, endDate, domainKey, checkpoints);
 }
 
 export {

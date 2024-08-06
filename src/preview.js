@@ -10,15 +10,8 @@
  * governing permissions and limitations under the License.
  */
 
-import { pageMetrics } from "../../../rum-insights/src/commands/heatmap.js";
-// This import will probably need to be changed to another path
+import { decorateVisualizerPill } from "index.js";
 const DOMAIN_KEY_NAME = 'aem-domainkey';
-
-const backgroundColorLow = 'rgba(255, 0, 0, 0.5)'; // Red
-const backgroundColorMedium = 'rgba(0, 213, 255, 0.5)'; // Blue
-const backgroundColorHigh = 'rgba(0, 255, 65, 0.5)'; // Green
-const textColor = 'white'; // Percentage text color
-
 
 class AemExperimentationBar extends HTMLElement {
   connectedCallback() {
@@ -123,153 +116,6 @@ function createPopupButton(label, header, items) {
   button.addEventListener('click', () => {
     popup.classList.toggle('hlx-hidden');
   });
-  return button;
-}
-function createHeatOverlay(count, total) {
-  const overlay = document.createElement('div');
-
-  overlay.style.position = 'absolute';
-  overlay.style.top = '0';
-  overlay.style.left = '0';
-  overlay.style.width = '100%';
-  overlay.style.height = '100%';
-  overlay.style.display = 'flex';
-  overlay.style.alignItems = 'center';
-  overlay.style.justifyContent = 'center';
-  overlay.style.pointerEvents = 'none';
-  overlay.style.fontSize = '2em';
-  overlay.style.color = textColor; 
-  overlay.style.fontWeight = 'normal';
-  overlay.style.textShadow = '1px 1px 2px black';
-
-  const percentage = ((count / total) * 100).toPrecision(3);
-  if (percentage < 1) {
-    overlay.style.backgroundColor = backgroundColorLow;
-  } else if (percentage >= 1 && percentage <= 5) {
-    overlay.style.backgroundColor = backgroundColorMedium;
-  } else {
-    overlay.style.backgroundColor = backgroundColorHigh;
-  }
-  overlay.textContent = `${percentage} %`;
-  return overlay;
-}
-
-function findVariable(variable, allMetrics) {
-  const clickCounts = {};
-  const convertCounts = {};
-  const formCounts = {};
-  Object.keys(allMetrics).forEach(key => {
-    const metric = allMetrics[key];
-    if (metric.clicks > 0) {
-      clickCounts[key] = metric.clicks;
-    }
-    if (metric.converts > 0) {
-      convertCounts[key] = metric.converts;
-    }
-    if (metric.forms > 0) {
-      formCounts[key] = metric.forms;
-    }
-  });
-
-  if (variable == "click") {
-    return clickCounts;
-  }
-  else if (variable == "conversions") {
-    return convertCounts;
-  }
-  else if (variable == "forms") {
-    return formCounts;
-  }
-}
-
-function isValidSelector(selector) {
-  try {
-    document.querySelector(selector);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function updatePageMetrics(startDate, endDate, variable) {
-  try {
-    const allData = await pageMetrics(startDate, endDate);
-    if (allData == undefined) {
-      console.error("Error fetching page metrics");
-      return;
-    }
-    const allMetrics = allData.metrics;
-    const curCounts = findVariable(variable, allMetrics);
-    //
-    console.log(curCounts, "curCounts", variable)
-    //
-
-    // removes old ones
-    document.querySelectorAll('.heat-overlay').forEach(overlay => overlay.remove());
-
-    Object.entries(curCounts).forEach(([selector, count]) => {
-      if (!isValidSelector(selector)) {
-        console.log('Invalid selector:', selector);
-        return;
-      }
-      const elements = document.querySelectorAll(selector);
-      if (elements.length == 0) {
-        console.log('No elements found for selector:', selector);
-        return;
-      }
-      console.log({elements, count, selector}, "elements, count, selector")
-      elements.forEach(element => {
-        if (element.querySelector('.heat-overlay')) {
-          console.log('Element already has an overlay:', element);
-          return;
-        }
-        const overlay = createHeatOverlay(count, allData.views);
-        console.log(overlay.textContent, allData.views, "overlay")
-        
-        if (window.getComputedStyle(element).position == 'static') {
-          element.style.position = 'relative';
-        }
-        overlay.classList.add('heat-overlay');
-        element.style.overflow = 'visible'; // Allow text to overflow
-        element.appendChild(overlay);
-      });
-    });
-  } catch (error) {
-    console.error('Error fetching page metrics:', error);
-  }
-}
-
-function createVisualizationButton(label, header, items, submit) {
-  const button = createButton(label);
-  const popup = createPopupDialog(header, items);
-  button.innerHTML += '<span class="hlx-open"></span>';
-  button.addEventListener('click', (event) => {
-    var isClickInsidePopup = popup.contains(event.target);
-    var isClickInsideButton = button.contains(event.target);
-    var isClickInsideSubmit = submit.contains(event.target);
-    if (!isClickInsidePopup && isClickInsideButton && !isClickInsideSubmit) {
-      popup.classList.toggle('hlx-hidden');
-    }
-    else if (isClickInsideSubmit) {
-      const overlay = getOverlay();
-      const startDate = overlay.querySelector('#start-date').value;
-      const endDate = overlay.querySelector('#end-date').value;
-      const variable = overlay.querySelector('#class-dropdown').value;
-
-      const allData = {
-        startDate,
-        endDate,
-        variable
-      };
-      console.log(allData); // data inputted by user
-      updatePageMetrics(startDate, endDate, variable);
-    }
-    else {
-      //  error out?
-    }
-  });
-  button.append(popup);
-  popup.append(submit);
   return button;
 }
 
@@ -660,27 +506,6 @@ async function decorateAudiencesPill(overlay, options, context) {
   if (resolvedAudiences.length) {
     pill.classList.add('is-active');
   }
-  overlay.append(pill);
-}
-
-async function decorateVisualizerPill(overlay, options, context) {
-  const submit = createButton('Submit');
-  const pill = createVisualizationButton(
-    `Visualizer`,
-    {
-      label: 'Visualization'
-    },
-    [
-      `Start Date: <input type="date" name="start-date" id="start-date">`,
-      `End Date: <input type="date" name="end-date" id="end-date">`,
-      `Variable: <select name="class-dropdown" id="class-dropdown">
-        <option value="click">Clicks</option>
-        <option value="conversions">Conversions</option>
-        <option value="forms">Form Submits</option>
-      </select>`,
-    ],
-    submit
-  );
   overlay.append(pill);
 }
 

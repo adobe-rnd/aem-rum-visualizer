@@ -2,17 +2,50 @@
 A simple heatmap overlay plugin to show RUM data on top of the current page
 
 Setup
-- Add the following line to your decoratePreviewMode() function inside experimentation/src/preview.js
+- Add the following import to the top of your scripts/scripts.js file
 ``` js
-await decorateVisualizerPill(overlay, options, context);
+import { decorateVisualizerPill, getOverlay } from "index.js";
 ```
-- Add the following import to the top of the same file
+- Add the following lines to the end of the same file before the final "loadpage()"
 ``` js
-import { decorateVisualizerPill } from "index.js";
+let pill = null;
+let on = false;
+const visualizer = async ({}) => {
+  if (on) {
+    on = false;
+    const overlay = getOverlay();
+    pill.remove(); 
+    pill = null;
+  }
+  else {
+    on = true;
+    const overlay = getOverlay();
+    pill = await decorateVisualizerPill(overlay);
+  }
+};
+
+const sk = document.querySelector('helix-sidekick');
+if (sk) {
+  // sidekick already loaded
+  sk.addEventListener('custom:visualizer', visualizer);
+} else {
+  // wait for sidekick to be loaded
+  document.addEventListener('sidekick-ready', () => {
+    document.querySelector('helix-sidekick')
+      .addEventListener('custom:visualizer', visualizer);
+  }, { once: true });
+}
 ```
-- Comment out the following lines in scripts/scripts.js (lines 112-114/allows visualizer overlay to appear even without experiment)
+Add the following lines to config.json inside tools/sidekick
 ``` js
-condition: () => getMetadata('experiment')
-    || Object.keys(getAllMetadata('campaign')).length
-    || Object.keys(getAllMetadata('audience')).length,
+    {
+      "id": "rum-visualizer",
+      "title": "RUM Visualizer",
+      "environments": [ "dev", "preview" ],
+      "event": "visualizer"
+    }
+```
+- Update the actualWebsiteName variable inside pageMetrics() in index.js to the URL of the site you are using
+``` js
+ const actualWebsiteName = 'https://www.petplace.com';
 ```

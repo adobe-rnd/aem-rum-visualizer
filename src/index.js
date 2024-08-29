@@ -1,20 +1,48 @@
-import { fetchDateRange } from "rum-bundler-client.js";
-import { groupChunksByUrl } from "aggregations.js";
+import { fetchDateRange } from "../common/rum-bundler-client.js";
+import { groupChunksByUrl, sliceChunksWithEnter, sliceChunksWithClickAndSource } from "../common/aggregations.js";
 
+const actualWebsiteName = 'https://www.petplace.com';
 const backgroundColorLow = 'rgba(255, 0, 0, 0.5)'; // Red
 const backgroundColorMedium = 'rgba(0, 213, 255, 0.5)'; // Blue
 const backgroundColorHigh = 'rgba(0, 255, 65, 0.5)'; // Green
 const textColor = 'white'; // Overlay percentage text color
 
-// Creates visualization bar and adds it to the overlay 
-export async function decorateVisualizerPill(overlay) {
-  const submit = createButton('Submit');
-  const close = createButton('X');
-  const pill = createVisualizationBar(
+// Connects to Sidekick and enables/disables the visualizer; first function to be called, placed inside scripts.js
+export async function createRUMVisualizer() {
+  let bar = null;
+  let on = false;
+  const visualizer = async ({ }) => {
+    if (on) {
+      on = false;
+      bar.remove();
+      bar = null;
+    }
+    else {
+      on = true;
+      const overlay = getOverlay();
+      bar = await decorateVisualizer(overlay);
+    }
+  };
+  const sk = document.querySelector('helix-sidekick');
+  if (sk) {
+    // sidekick already loaded
+    sk.addEventListener('custom:visualizer', visualizer);
+  } else {
+    // wait for sidekick to be loaded
+    document.addEventListener('sidekick-ready', () => {
+      document.querySelector('helix-sidekick')
+        .addEventListener('custom:visualizer', visualizer);
+    }, { once: true });
+  }
+}
+
+// Intializes visualization bar HTML and adds it to the overlay 
+export async function decorateVisualizer(overlay) {
+  const bar = createVisualizationBar(
     [
-      `Start Date: <input type="date" name="start-date" id="start-date">`,
-      `End Date: <input type="date" name="end-date" id="end-date">`,
-      `Variable: <select name="class-dropdown" id="class-dropdown" class="dropup">
+      `Start Date: <input type="date" id="start-date">`,
+      `End Date: <input type="date" id="end-date">`,
+      `Variable: <select id="class-dropdown">
         <optgroup label="Percentages">
           <option value="CTR">CTR</option>
           <option value="CVR">CVR</option>
@@ -27,155 +55,116 @@ export async function decorateVisualizerPill(overlay) {
         <optgroup label="Viewed">
           <option value="views">Blocks</option>
       </select>`,
-      `Domain Key: <input type="text" name="domain-key" id="domain-key" style="width: 100px;">`,
-      `Device: <select name="device-dropdown" id="device-dropdown" class="dropup">
+      `Domain Key: <input type="password" id="domain-key" class="aem-rum-visualization-input-password">`,
+      `Device: <select id="device-dropdown">
         <option value="all-devices">All</option>
         <option value="desktop">Desktop</option>
         <option value="mobile">Mobile</option>`,
       `Views: <span id="views">0</span>`,
-    ],
-    submit,
-    close
+      ],
+      [
+      `Click <a href="https://example.com" target="_blank" id="rum-link">here</a> to access RUM Explorer`,
+      `Please paste custom convert details below from RUM Explorer`,
+      `<textarea name="cc-input" id="cc-input" rows="4" class="aem-rum-visualization-textarea-cc-input"></textarea>`,
+      ]
   );
-  overlay.append(pill);
-  return pill;
+  overlay.append(bar);
+  return bar;
 }
 
-function createVisualizationBar(items, submit, close) {
-  // const button = createButton(label);
-  // const popup = createPopupDialog(header, items);
+// Creates the visualization bar with the given HTML items, adds in click event listeners 
+function createVisualizationBar(items, ccDisplay) {
   const bar = document.createElement('div');
-  bar.className = 'bar';
-
+  const submit = createButton('Submit');
+  const close = createButton('X');
   const cc = createButton('^');
-  let popup;
   const ccSubmit = createButton('Submit');
-  ccSubmit.style.width = 'auto'; // Make the width auto to fit the content
-  ccSubmit.style.margin = '10px auto'; // Center the button horizontally with some margin
-  ccSubmit.style.position = 'relative'; // Position relative to adjust its position
-  ccSubmit.style.top = '-10px'; // Move the button higher than the border
+  const popup = createPopupDialog("Custom Converts", ccDisplay);
+  popup.append(ccSubmit);
+  bar.className = 'aem-rum-visualization-actionbar';
+  submit.className = 'aem-rum-visualization-submit';
+  close.className = 'aem-rum-visualization-close';
+  cc.className = 'aem-rum-visualization-cc';
+  ccSubmit.className = 'aem-rum-visualization-cc-submit';
+
+  // Creates bar elements
   items.forEach(item => {
     const div = document.createElement('div');
+    div.className = 'aem-rum-visualization-bar-element';
     div.innerHTML = item;
-    div.style.display = 'inline-block';
-    div.style.marginRight = '10px'; // Reduced margin between items
-    div.style.color = '#800080'; // Dark purple text color for contrast
-    div.style.fontSize = '18px'; // Slightly larger text size
-    div.style.fontWeight = 'bold'; // Bold text for emphasis
-    div.style.fontFamily = 'Roboto, sans-serif'; // Modern font
     if (div.querySelector('#class-dropdown')) {
-      cc.innerHTML = '^';
-      cc.style.height = '19px';
-      cc.style.visibility = 'hidden';
-      cc.style.verticalAlign = 'middle';
       cc.innerHTML += '<span class="hlx-open"></span>';
-      div.appendChild(cc);
-      const ccDisplay =
-        [
-          `Click <a href="https://example.com" target="_blank" id="rum-link">here</a> to access RUM Explorer`,
-          `Please paste custom convert details below from RUM Explorer`,
-          `<textarea name="cc-input" id="cc-input" rows="4" style="width: 100%; resize: vertical;"></textarea>`,
-        ];
-      popup = createPopupDialog("Custom Converts", ccDisplay);
-      cc.append(popup);
-
-      const classDropdown = div.querySelector('#class-dropdown');
-      classDropdown.addEventListener('change', (event) => {
-        console.log('Class dropdown value changed to:', event.target.value);
-
-        if (event.target.value === 'cc') {
-          cc.style.visibility = 'visible'; // Make the cc button visible
-          popup.classList.toggle('hlx-hidden');
-        } else {
-          cc.style.visibility = 'hidden'; // Keep the cc button invisible for other values
-        }
-      });
+      div.append(cc);
     }
-    bar.appendChild(div);
+    bar.append(div);
+    bar.append(popup);
   });
-  submit.style.marginRight = '10px';
-  bar.appendChild(submit);
-  close.className = 'close';
-  close.style.width = `25px`;
-  close.style.height = `21.5px`;
-  bar.appendChild(close);
-  popup.append(ccSubmit);
+  bar.append(submit, close);
 
-  // button.innerHTML += '<span class="hlx-open"></span>';
-  bar.addEventListener('click', (event) => {
-    var isClickInsideSubmit = submit.contains(event.target);
-    var isClickInsideClose = close.contains(event.target);
-    var isClickInsideCC = cc.contains(event.target);
-    var isClickInsidePopup = popup.contains(event.target);
-    var isClickInsideCCSubmit = ccSubmit.contains(event.target);
+  // Add event listeners to bar elements
+  submit.addEventListener('click', (event) => {
+    const overlay = getOverlay();
+    const startDate = overlay.querySelector('#start-date').value;
+    const endDate = overlay.querySelector('#end-date').value;
+    const variable = overlay.querySelector('#class-dropdown').value;
+    const domainKey = overlay.querySelector('#domain-key').value;
+    const device = overlay.querySelector('#device-dropdown').value;
 
-    if (isClickInsideSubmit) {
-      const overlay = getOverlay();
-      const startDate = overlay.querySelector('#start-date').value;
-      const endDate = overlay.querySelector('#end-date').value;
-      const variable = overlay.querySelector('#class-dropdown').value;
-      const domainKey = overlay.querySelector('#domain-key').value;
-      const device = overlay.querySelector('#device-dropdown').value;
+    const allData = {
+      startDate,
+      endDate,
+      variable,
+      domainKey,
+      device
+    };
+    console.log(allData, "all data"); // data inputted by user
+    updatePageMetrics(startDate, endDate, variable, domainKey, device);
 
-      const allData = {
-        startDate,
-        endDate,
-        variable,
-        domainKey,
-        device
-      };
-      console.log(allData); // data inputted by user
-      updatePageMetrics(startDate, endDate, variable, domainKey, device);
+    console.log("updated page metrics");
+  });
 
-      console.log("updated page metrics");
+  close.addEventListener('click', (event) => {
+    const barItems = bar.querySelectorAll(':not(.aem-rum-visualization-close):not(.aem-rum-visualization-cc-submit):not(.hlx-popup):not(.hlx-popup *)');
+    barItems.forEach(item => {
+      item.style.display = item.style.display == 'none' ? 'inline-block' : 'none';
+    });
+    if (bar.classList.contains('collapsed')) {
+      bar.classList.remove('collapsed');
+      close.innerHTML = 'X';
+      console.log("open");
+    } else {
+      bar.classList.add('collapsed');
+      close.innerHTML = '+';
+      console.log("close");
     }
-    else if (isClickInsideClose) {
-      const barItems = bar.querySelectorAll(':not(.close)');
-      barItems.forEach(item => {
-        item.style.display = item.style.display === 'none' ? 'inline-block' : 'none';
-      });
-      if (bar.style.width == '100%') {
-        bar.style.width = '30px' // Set width to the button's width
-        bar.style.margin = '0px'; // Remove margin
-        bar.style.padding = '0px'; // Remove padding
-        bar.style.border = 'none'; // Remove border
-        close.innerHTML = '+';
-        console.log("close")
-      } else {
-        bar.style.width = '100%';
-        bar.style.padding = '20px'; // Padding for better spacing
-        bar.style.paddingLeft = '40px'; // Padding on the left
-        bar.style.paddingRight = '40px'; // Padding on the right
-        bar.style.border = '4px solid #800080';
-        close.innerHTML = 'X';
-        console.log("open")
+    if (!popup.classList.contains('hlx-hidden')) {
+      popup.classList.toggle('hlx-hidden'); // Toggle hidden if popup is currently visible
+    }
+  });
+
+  const classDropdown = bar.querySelector('#class-dropdown');
+  classDropdown.addEventListener('change', (event) => {
+    console.log('Class dropdown value changed to:', event.target.value);
+    if (event.target.value == 'cc') {
+      cc.style.visibility = 'visible'; // Make the cc button visible
+      generateRumExplorerUrl();
+      popup.classList.toggle('hlx-hidden');
+    } else {
+      cc.style.visibility = 'hidden'; // Keep the cc button invisible for other dropdown options
+      if (!popup.classList.contains('hlx-hidden')) {
+        popup.classList.toggle('hlx-hidden'); // Toggle hidden if popup is currently visible
       }
     }
-    else if (isClickInsideCC && !isClickInsidePopup) {
+  });
+
+  cc.addEventListener('click', (event) => {
       console.log("cc clicked");
       popup.classList.toggle('hlx-hidden');
-      const url = window.location.href;
-      const actualWebsiteName = 'https://www.petplace.com';
-      const simpleWebsiteName = actualWebsiteName.replace(/^https?:\/\//, '');
-      const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, actualWebsiteName);
-      let encodedUrl = updatedUrl;
-      const replacements = { ':': '%3A', '/': '%2F' };
-
-      for (const [key, value] of Object.entries(replacements)) {
-        encodedUrl = encodedUrl.split(key).join(value);
-      }
-      const overlay = getOverlay();
-      const rumExplorer = 'https://www.aem.live/tools/oversight/explorer.html?domain=' +
-        simpleWebsiteName + '&url=' + encodedUrl + '&domainkey=' + overlay.querySelector('#domain-key').value;
-      console.log(rumExplorer, "rum url");
-      const rumLinkElement = overlay.querySelector('#rum-link');
-      console.log(rumLinkElement, "rumLinkElement");
-      rumLinkElement.href = rumExplorer;
-    }
-    else if (isClickInsideCCSubmit) {
+      generateRumExplorerUrl();
+  });
+  
+  ccSubmit.addEventListener('click', (event) => {
       console.log("cc submit clicked");
-      // run pagemetrics specfically on customversion 
-      // make new function for custom stuff, only need one at a time 
       const overlay = getOverlay();
       const startDate = overlay.querySelector('#start-date').value;
       const endDate = overlay.querySelector('#end-date').value;
@@ -191,18 +180,12 @@ function createVisualizationBar(items, submit, close) {
       console.log(allData, "cc data"); // data inputted by user
       ccPageMetrics(startDate, endDate, domainKey, ccInput);
 
-      console.log("updated page metrics");
-    }
-
-    else {
-      //  error out?
-    }
+      console.log("updated cc page metrics");
   });
-  //bar.append(popup);
-  //popup.append(submit);
   return bar;
 }
 
+// Creates visuaization/heatmap based on user input
 async function updatePageMetrics(startDate, endDate, variable, domainKey, device) {
   try {
     const allData = await pageMetrics(startDate, endDate, domainKey, device);
@@ -271,12 +254,13 @@ async function updatePageMetrics(startDate, endDate, variable, domainKey, device
         //
       });
     });
-    //  console.log("my overlay is here and later deleted :(")
+      console.log("my overlay is here and later deleted :(")
   } catch (error) {
     console.error('Error fetching page metrics:', error);
   }
 }
 
+// Obtains RUM bundles and organizes them accordingly 
 export async function pageMetrics(startDate, endDate, domainKey, device) {
   let data = {
     views: null,
@@ -284,13 +268,9 @@ export async function pageMetrics(startDate, endDate, domainKey, device) {
     metrics: {}
   };
 
-  // INSERT CURRENT URL FUNCTION HERE
   const url = window.location.href;
-
-  // Replace "localhost" with the actual website name
-  const actualWebsiteName = 'https://www.petplace.com';
-  // ERROR CHECK FOR LOCAL HOST (remove later?)
-  const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, actualWebsiteName);
+  const websiteName = actualWebsiteName;
+  const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName);
 
   console.log(updatedUrl, "updatedUrl");
 
@@ -354,13 +334,11 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInput) {
     metrics: {}
   };
 
-  // INSERT CURRENT URL FUNCTION HERE
   const url = window.location.href;
 
-  // Replace "localhost" with the actual website name
-  const actualWebsiteName = 'https://www.petplace.com';
-  // ERROR CHECK FOR LOCAL HOST (remove later?)
-  const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, actualWebsiteName);
+  const websiteName  = actualWebsiteName;
+
+  const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName);
 
   console.log(updatedUrl, "updatedUrl");
 
@@ -389,6 +367,7 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInput) {
 
   console.log(ccInput, "ccInput");
 
+  // Reads ccInput string and converts it to an array
   const ccInputLines = ccInput.split('\n');
   const ccInputObj = {};
   ccInputLines.forEach(line => {
@@ -399,20 +378,21 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInput) {
 
   console.log(ccInputObj, "ccInputObj", ccInputLines);
 
+  let enterSource = null;
+  let otherSource = null;
+
+  // Check if ccInputObj contains two sources
+  const sourceKeys = Object.keys(ccInputObj).filter(key => key.includes('source'));
+  if (sourceKeys.length === 2) {
+    enterSource = ccInputObj[sourceKeys.find(key => key.includes('enter'))];
+    otherSource = ccInputObj[sourceKeys.find(key => key.includes('click') || key.includes('viewblock'))];
+  }
+  //console.log(enterSources, otherSources, "enterSources, otherSources");
   curChunk.chunks.forEach((chunk) => {
     const uniqueEvents = new Set(); // Track unique event-source combinations
     const weight = chunk.weight;
     const userAgent = chunk.userAgent;
 
-    let enterSource = null;
-    let otherSource = null;
-
-    // Check if ccInputObj contains two sources
-    const sourceKeys = Object.keys(ccInputObj).filter(key => key.includes('source'));
-    if (sourceKeys.length === 2) {
-      enterSource = ccInputObj[sourceKeys.find(key => key.includes('enter'))];
-      otherSource = ccInputObj[sourceKeys.find(key => key.includes('click') || key.includes('viewblock'))];
-    }
     let matchesUserAgent = true;
     let matchesCheckpoint = true;
     let matchesSource = true;
@@ -444,9 +424,23 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInput) {
         if (targetKey) {
           matchesTarget = event.target == ccInputObj[targetKey];
         }
+        if (enterSource && otherSource) {
+          console.log("adentro de aqui")
+          const enterEvent = chunk.events.find(e => e.checkpoint === 'enter' && e.source === enterSource);
+          const otherEvent = chunk.events.find(e => (e.checkpoint === 'click' || e.checkpoint === 'viewblock') && e.source === otherSource);
 
+          if (enterEvent && otherEvent && matchesUserAgent && matchesTarget) {
+            if (data.metrics[otherEvent.source] == undefined) {
+              data.metrics[otherEvent.source] = { "clicks": 0, "converts": 0, "formsubmits": 0, "targets": {} };
+              updateChunk(otherEvent, data.metrics[otherEvent.source], weight);
+            } else {
+              updateChunk(otherEvent, data.metrics[otherEvent.source], weight);
+            }
+            break;
+          }
+        }
         // Process the event if it matches all the criteria that are present
-        if (matchesUserAgent && matchesCheckpoint && matchesSource && matchesTarget) {
+        else if (matchesUserAgent && matchesCheckpoint && matchesSource && matchesTarget) {
           if (event.checkpoint == 'click' || event.checkpoint == 'convert' || event.checkpoint == 'formsubmit') {
             if (data.metrics[event.source] == undefined) {
               data.metrics[event.source] = { "clicks": 0, "converts": 0, "formsubmits": 0, "targets": {} };
@@ -464,20 +458,7 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInput) {
 
         }
       }
-      if (enterSource && otherSource) {
-        const enterEvent = chunk.events.find(e => e.checkpoint === 'enter' && e.source === enterSource);
-        const otherEvent = chunk.events.find(e => (e.checkpoint === 'click' || e.checkpoint === 'viewblock') && e.source === otherSource);
 
-        if (enterEvent && otherEvent && matchesUserAgent && matchesTarget) {
-          if (data.metrics[otherEvent.source] == undefined) {
-            data.metrics[otherEvent.source] = { "clicks": 0, "converts": 0, "formsubmits": 0, "targets": {} };
-            updateChunk(otherEvent, data.metrics[otherEvent.source], weight);
-          } else {
-            updateChunk(otherEvent, data.metrics[otherEvent.source], weight);
-          }
-          break;
-        }
-      }
     }
   });
   console.log(data, "final data");
@@ -627,15 +608,13 @@ function getMainWebsiteName(url) {
   return urlObject.hostname; // Return the hostname property
 }
 
-function checkTarget(tl, target) {
-  // if (target != undefined) {
+function checkTarget(tl, target, weight) {
   if (tl[target] == undefined) {
-    tl[target] = 1;
+    tl[target] = weight;
   }
   else {
-    tl[target] += 1;
+    tl[target] += weight;
   }
-  //  }
 }
 
 function updateChunk(event, source, weight) {
@@ -648,13 +627,32 @@ function updateChunk(event, source, weight) {
   else if (event.checkpoint == 'formsubmit') {
     source.formsubmits += weight;
   }
-  checkTarget(source.targets, event.target);
+  checkTarget(source.targets, event.target, weight);
 }
 
-//
+function generateRumExplorerUrl() {
+  const url = window.location.href;
+  const websiteName = actualWebsiteName
+  const simpleWebsiteName = websiteName.replace(/^https?:\/\//, '');
+  const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName );
+  let encodedUrl = updatedUrl;
+  const replacements = { ':': '%3A', '/': '%2F' };
+  for (const [key, value] of Object.entries(replacements)) {
+    encodedUrl = encodedUrl.split(key).join(value);
+  }
+  const overlay = getOverlay();
+  const rumExplorer = 'https://www.aem.live/tools/oversight/explorer.html?domain=' +
+    simpleWebsiteName + '&url=' + encodedUrl + '&domainkey=' + overlay.querySelector('#domain-key').value;
+  console.log(rumExplorer, "rum url");
+  const rumLinkElement = overlay.querySelector('#rum-link');
+  console.log(rumLinkElement, "rumLinkElement");
+  rumLinkElement.href = rumExplorer;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Default element creation functions
 function createButton(label) {
   const button = document.createElement('button');
-  //  button.className = 'hlx-badge';
   const text = document.createElement('span');
   text.innerHTML = label;
   button.append(text);
@@ -715,7 +713,7 @@ class AemVisualizationBar extends HTMLElement {
     // Create a shadow root
     const shadow = this.attachShadow({ mode: 'open' });
 
-    const cssPath = new URL(new Error().stack.split('\n')[2].match(/[a-z]+?:\/\/.*?\/[^:]+/)[0]).pathname.replace('heatmap.js', 'index.css');
+    const cssPath = new URL(new Error().stack.split('\n')[2].match(/[a-z]+?:\/\/.*?\/[^:]+/)[0]).pathname.replace('index.js', 'index.css');
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = cssPath;
@@ -732,7 +730,6 @@ class AemVisualizationBar extends HTMLElement {
 }
 customElements.define('aem-visualization-bar', AemVisualizationBar);
 
-
 function createPreviewOverlay() {
   const overlay = document.createElement('aem-visualization-bar');
   return overlay;
@@ -747,4 +744,4 @@ export function getOverlay() {
   }
   return overlay;
 }
-//
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////

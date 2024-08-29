@@ -232,22 +232,93 @@
     display: none;
   }
   
-  
-  .bar {
+  .aem-rum-visualization-actionbar {
     position: fixed;
     bottom: 0;
     width: 100%;
-    background-color: #ffffff; /* White background color */
-    border-top: 1px solid #ccc; /* Light grey border on top */
-    border: 4px solid #800080; /* Thicker dark purple border around the bar */
-    padding: 20px; /* Padding for better spacing */
-    box-shadow: 0 -2px 5px rgba(128, 0, 128, 0.3); /* Reduced purple shadow for a subtle effect */
-    z-index: 1000; /* Ensure it stays on top of other elements */
-    margin: 0; /* No margin */
-    box-sizing: border-box; /* Ensure padding and border are included in the element's total width and height */
-    display: flex; /* Use flexbox for layout */
-    justify-content: space-around; /* Space out elements evenly */
-    align-items: center; /* Center elements vertically */
-    padding-left: 40px; /* Padding on the left */
-    padding-right: 40px; /* Padding on the right */
+    background-color: #ffffff; 
+    border: 4px solid #800080;
+    padding: 20px; 
+    box-shadow: 0 -2px 5px rgba(128, 0, 128, 0.3); 
+    z-index: 9999; /* Ensure it stays on top of other elements */
+    margin: 0; 
+    box-sizing: border-box; 
+    display: flex;
+    justify-content: space-around; 
+    align-items: center; 
+    padding-left: 40px; 
+    padding-right: 40px; 
+  }
+  
+  .aem-rum-visualization-actionbar.collapsed {
+    width: 30px;
+    margin: 0;
+    padding: 0;
+    border: none;
+  }
+  
+  .aem-rum-visualization-cc {
+    height: 19px;
+    visibility: hidden;
+    vertical-align: middle;
+    top: 10px;
+  }
+  
+  .aem-rum-visualization-cc-submit {
+    width: auto;
+    margin: 10px auto;
+    position: relative;
+    top: -10px;
+  }
+  
+  .aem-rum-visualization-bar-element {
+    display: inline-block;
+    margin-right: 10px;
+    color: #800080;
+    font-size: 18px;
+    font-weight: bold;
+    font-family: 'Roboto', sans-serif;
+  }
+  
+  .aem-rum-visualization-submit {
+    margin-right: 10px;
+  }
+  
+  .aem-rum-visualization-close {
+    width: 25px;
+    height: 21.5px;
+  }
+  
+  .aem-rum-visualization-input-password {
+    width: 100px;
+  }
+  
+  .aem-rum-visualization-textarea-cc-input {
+    width: 100%;
+    resize: vertical;
+  }
+  
+  
+  @media (width >=600px) {
+    .hlx-highlight {
+      --highlight-size: .75rem;
+    }
+  
+    .hlx-preview-overlay {
+      align-items: end;
+      font-size: 1.25rem;
+    }
+  }
+  
+  @media (width >=900px) {
+    .hlx-highlight {
+      --highlight-size: 1rem;
+    }
+  
+    .hlx-preview-overlay {
+      flex-flow: row wrap-reverse;
+      justify-content: flex-end;
+      font-size: 1.5rem;
+    }
+  
   }

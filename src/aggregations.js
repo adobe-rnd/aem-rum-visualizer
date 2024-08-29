@@ -80,6 +80,18 @@ function sliceChunksWithClick(chunks) {
   return chunks.filter((chunk) => chunk.events.find((event) => event.checkpoint === 'click'));
 }
 
+function sliceChunksWithEnter(chunks, source) {
+  return chunks.filter((chunk) => 
+    chunk.events.some((event) => event.checkpoint === 'enter' && event.source === source)
+  );
+}
+
+function sliceChunksWithClickAndSource(chunks, source) {
+  return chunks.filter((chunk) => 
+    chunk.events.some((event) => event.checkpoint === 'click' && event.source === source)
+  );
+}
+
 function getCheckpointsCount(chunks) {
   const checkpoints = {};
   chunks.flatMap((chunk) => chunk.events)
@@ -152,4 +164,7 @@ export {
   getVisitsCount,
   sliceChunksWithInDates,
   applyFilters,
+
+  sliceChunksWithEnter,
+  sliceChunksWithClickAndSource,
 }

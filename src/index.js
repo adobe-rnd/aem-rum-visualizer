@@ -110,17 +110,7 @@ function createVisualizationBar(items, ccDisplay) {
     const domainKey = overlay.querySelector('#aem-rum-visualization-domain-key').value;
     const device = overlay.querySelector('#aem-rum-visualization-device-dropdown').value;
 
-    const allData = {
-      startDate,
-      endDate,
-      variable,
-      domainKey,
-      device
-    };
-    console.log(allData, "all data"); // data inputted by user
     updatePageMetrics(startDate, endDate, variable, domainKey, device);
-
-    console.log("updated page metrics");
   });
 
   close.addEventListener('click', (event) => {
@@ -131,11 +121,9 @@ function createVisualizationBar(items, ccDisplay) {
     if (bar.classList.contains('collapsed')) {
       bar.classList.remove('collapsed');
       close.innerHTML = 'X';
-      console.log("open");
     } else {
       bar.classList.add('collapsed');
       close.innerHTML = '+';
-      console.log("close");
     }
     if (!popup.classList.contains('hlx-hidden')) {
       popup.classList.toggle('hlx-hidden'); // Toggle hidden if popup is currently visible
@@ -144,7 +132,6 @@ function createVisualizationBar(items, ccDisplay) {
 
   const classDropdown = bar.querySelector('#aem-rum-visualization-class-dropdown');
   classDropdown.addEventListener('change', (event) => {
-    console.log('Class dropdown value changed to:', event.target.value);
     if (event.target.value == 'cc') {
       cc.style.visibility = 'visible'; // Make the cc button visible
       generateRumExplorerUrl();
@@ -158,26 +145,16 @@ function createVisualizationBar(items, ccDisplay) {
   });
 
   cc.addEventListener('click', (event) => {
-    console.log("cc clicked");
     popup.classList.toggle('hlx-hidden');
     generateRumExplorerUrl();
   });
 
   ccSubmit.addEventListener('click', (event) => {
-    console.log("cc submit clicked");
     const overlay = getOverlay();
     const startDate = overlay.querySelector('#aem-rum-visualization-start-date').value;
     const endDate = overlay.querySelector('#aem-rum-visualization-end-date').value;
     const domainKey = overlay.querySelector('#aem-rum-visualization-domain-key').value;
     const ccInput = overlay.querySelector('#aem-rum-visualization-cc-input').value;
-
-    const allData = {
-      startDate,
-      endDate,
-      domainKey,
-      ccInput
-    };
-    console.log(allData, "cc data"); // data inputted by user
 
     // Reads ccInput string and converts it to an array
     const ccInputLines = ccInput.split('\n');
@@ -191,10 +168,8 @@ function createVisualizationBar(items, ccDisplay) {
         ccInputObj[key] = value;
       }
     });
-    console.log(ccInputObj, "ccInputObj");
-    updateCCPageMetrics(startDate, endDate, domainKey, ccInputObj);
 
-    console.log("updated cc page metrics");
+    updateCCPageMetrics(startDate, endDate, domainKey, ccInputObj);
   });
   return bar;
 }
@@ -203,7 +178,6 @@ function createVisualizationBar(items, ccDisplay) {
 async function updatePageMetrics(startDate, endDate, variable, domainKey, device) {
   try {
     const allData = await pageMetrics(startDate, endDate, domainKey, device);
-    console.log(allData.views, "views");
     const overlay = getOverlay();
     const viewsElement = overlay.querySelector('#aem-rum-visualization-views');
     viewsElement.textContent = allData.views;
@@ -220,7 +194,6 @@ async function updatePageMetrics(startDate, endDate, variable, domainKey, device
     else {
       curCounts = allData.viewedblocks;
     }
-    console.log(curCounts, "curCounts", variable)
 
     // removes previous overlays
     document.querySelectorAll('.heat-overlay').forEach(overlay => overlay.remove());
@@ -232,12 +205,10 @@ async function updatePageMetrics(startDate, endDate, variable, domainKey, device
 
     Object.entries(curCounts).forEach(([selector, count]) => {
       if (!isValidSelector(selector)) {
-        // console.log('Invalid selector:', selector);
         return;
       }
       const elements = document.querySelectorAll(selector);
       if (elements.length == 0) {
-        // console.log('No elements found for selector:', selector);
         return;
       }
       console.log({ elements, count, selector }, "elements, count, selector")
@@ -255,12 +226,8 @@ async function updatePageMetrics(startDate, endDate, variable, domainKey, device
         overlay.classList.add('heat-overlay');
         element.style.overflow = 'visible'; // Allow text to overflow
         element.append(overlay);
-        // const rect = overlay.getBoundingClientRect();
-        // console.log(`Overlay details - Width: ${rect.width}, Height: ${rect.height}, Top: ${rect.top}, Left: ${rect.left}`);
-        //
       });
     });
-    // //
   } catch (error) {
     console.error(error);
   }
@@ -277,30 +244,20 @@ export async function pageMetrics(startDate, endDate, domainKey, device) {
   const url = window.location.href;
   const websiteName = actualWebsiteName;
   const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName);
-
-  console.log(updatedUrl, "updatedUrl");
-
   const hostname = getMainWebsiteName(updatedUrl);
-  console.log(hostname, "hostname");
 
   const allChunks = await fetchSpecificBundles(hostname, startDate, endDate, domainKey);
   if (allChunks == undefined) {
     console.error("Invalid dates, please try again");
     return;
   }
-
   const chunkURL = groupChunksByUrl(allChunks, 0);
-
-  console.log(chunkURL, "chunks by URL (all chunks)");
-
   const curChunk = chunkURL[updatedUrl];
   if (curChunk == undefined) {
     console.error("This page is undefined/not enough data");
     return;
   }
   data.views = chunkURL[updatedUrl].pageview;
-
-  console.log(curChunk, "curChunk", data.views);
 
   curChunk.chunks.forEach((chunk) => {
     const uniqueEvents = new Set(); // Track unique event-source combinations, makes sure there are no dupes
@@ -328,7 +285,7 @@ export async function pageMetrics(startDate, endDate, domainKey, device) {
       }
     });
   });
-  console.log(data, "final data");
+  console.log(data, "Final Data/Schema");
   return data;
 }
 
@@ -347,7 +304,6 @@ async function updateCCPageMetrics(startDate, endDate, domainKey, ccInput) {
     // this will not account for other stuff thats not clicks or viewblocks
     const checkpoint = ccInput.checkpoint;
     const variable = checkpoint.includes('click') ? 'click' : checkpoint.includes('viewblock') ? 'viewblock' : null;
-    console.log(variable, "variable yes ");
     if (variable != "viewblock") {
       const allMetrics = data.metrics;
       curCounts = findVariable(variable, allMetrics);
@@ -355,10 +311,6 @@ async function updateCCPageMetrics(startDate, endDate, domainKey, ccInput) {
     else {
       curCounts = data.viewedblocks;
     }
-    //
-    console.log(curCounts, "curCounts", variable)
-    //
-
     // removes old ones
     document.querySelectorAll('.heat-overlay').forEach(overlay => overlay.remove());
 
@@ -366,39 +318,24 @@ async function updateCCPageMetrics(startDate, endDate, domainKey, ccInput) {
 
     Object.entries(curCounts).forEach(([selector, count]) => {
       if (!isValidSelector(selector)) {
-        console.log('Invalid selector:', selector);
         return;
       }
       const elements = document.querySelectorAll(selector);
       if (elements.length == 0) {
-        console.log('No elements found for selector:', selector);
         return;
       }
-      console.log({ elements, count, selector }, "elements, count, selector")
       elements.forEach(element => {
         if (element.querySelector('.heat-overlay')) {
-          console.log('Element already has an overlay:', element);
           return;
         }
         const overlay = createHeatOverlay(count, data.views, percentTrigger);
-        console.log(overlay.textContent, data.views, "overlay")
 
         if (window.getComputedStyle(element).position == 'static') {
           element.style.position = 'relative';
         }
         overlay.classList.add('heat-overlay');
         element.style.overflow = 'visible'; // Allow text to overflow
-        element.appendChild(overlay);
-        const children = element.children;
-        // Iterate over the children and print each one
-        for (let i = 0; i < children.length; i++) {
-          console.log(children[i], "child");
-        }
-        console.log("end of cur child")
-        //
-        const rect = overlay.getBoundingClientRect();
-        console.log(`Overlay details - Width: ${rect.width}, Height: ${rect.height}, Top: ${rect.top}, Left: ${rect.left}`);
-        //
+        element.append(overlay);
       });
     });
   }
@@ -414,15 +351,9 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
   };
 
   const url = window.location.href;
-
   const websiteName = actualWebsiteName;
-
   const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName);
-
-  // console.log(updatedUrl, "updatedUrl");
-
   const hostname = getMainWebsiteName(updatedUrl);
-  // console.log(hostname, "hostname");
 
   const allChunks = await fetchSpecificBundles(hostname, startDate, endDate, domainKey);
   if (allChunks == undefined) {
@@ -431,9 +362,6 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
   }
 
   const chunkURL = groupChunksByUrl(allChunks, 0);
-
-  // console.log(chunkURL, "chunks by URL (all chunks)");
-
   const curChunk = chunkURL[updatedUrl];
   if (curChunk == undefined) {
     console.error("This page is undefined/not enough data");
@@ -441,16 +369,12 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
   }
   data.views = chunkURL[updatedUrl].pageview;
 
-  console.log(curChunk, "curChunk cc");
-  console.log(data.views, "views");
-
-
   let enterSources = [];
   let otherSources = [];
 
   // Check if ccInputObj contains two or more sources
   const sourceKeys = Object.keys(ccInputObj).filter(key => key.includes('source'));
-  console.log(sourceKeys, "sourceKeys");
+
   // If there are two or more sources, split the sources into enterSources and otherSources
   if (sourceKeys.length >= 2) {
     enterSources = sourceKeys
@@ -461,12 +385,8 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
       .filter(key => key.includes('click') || key.includes('viewblock'))
       .map(key => ccInputObj[key]);
 
-    console.log(enterSources, otherSources, "enterSources, otherSources");
-
     const enterChunks = sliceChunksWithEnter(curChunk.chunks, enterSources);
-    console.log(enterChunks, "enterChunks");
     const otherChunks = sliceChunksWithClickAndSource(enterChunks, otherSources);
-    console.log(otherChunks, "otherChunks");
 
     // ccInputObj contains the source keys and values, we turn into it into an array to turn in from one value into many
     const sourceArray = Object.values(otherSources)
@@ -542,15 +462,9 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
         .filter(key => key.includes('click') || key.includes('viewblock'))
         .map(key => ccInputObj[key]);
 
-      console.log(otherSources, "otherSources alone");
-
-
-      console.log("inside no enter")
       const otherChunks = sliceChunksWithClickAndSource(curChunk.chunks, otherSources);
-      console.log(otherChunks, "otherChunks");
 
       // ccInputObj contains the source keys and values, we turn into it into an array to turn in from one value into many
-
       otherChunks.forEach((chunk) => {
         const uniqueEvents = new Set(); // Track unique event-source combinations
         const weight = chunk.weight;
@@ -669,7 +583,7 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
       });
     }
   }
-  console.log(data, "final data");
+  console.log(data, "Final Data/Schema");
   return data;
 }
 
@@ -785,9 +699,7 @@ function generateRumExplorerUrl() {
   const overlay = getOverlay();
   const rumExplorer = 'https://www.aem.live/tools/oversight/explorer.html?domain=' +
     simpleWebsiteName + '&url=' + encodedUrl + '&domainkey=' + overlay.querySelector('#aem-rum-visualization-domain-key').value;
-  console.log(rumExplorer, "rum url");
   const rumLinkElement = overlay.querySelector('#aem-rum-visualization-rum-link');
-  console.log(rumLinkElement, "rumLinkElement");
   rumLinkElement.href = rumExplorer;
 }
 

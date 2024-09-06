@@ -358,12 +358,12 @@ async function updateCCPageMetrics(startDate, endDate, domainKey, ccInput) {
     //
     console.log(curCounts, "curCounts", variable)
     //
-  
+
     // removes old ones
     document.querySelectorAll('.heat-overlay').forEach(overlay => overlay.remove());
-  
+
     let percentTrigger = true;
-  
+
     Object.entries(curCounts).forEach(([selector, count]) => {
       if (!isValidSelector(selector)) {
         console.log('Invalid selector:', selector);
@@ -382,7 +382,7 @@ async function updateCCPageMetrics(startDate, endDate, domainKey, ccInput) {
         }
         const overlay = createHeatOverlay(count, data.views, percentTrigger);
         console.log(overlay.textContent, data.views, "overlay")
-  
+
         if (window.getComputedStyle(element).position == 'static') {
           element.style.position = 'relative';
         }
@@ -468,9 +468,9 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
     const otherChunks = sliceChunksWithClickAndSource(enterChunks, otherSources);
     console.log(otherChunks, "otherChunks");
 
-      // ccInputObj contains the source keys and values, we turn into it into an array to turn in from one value into many
+    // ccInputObj contains the source keys and values, we turn into it into an array to turn in from one value into many
     const sourceArray = Object.values(otherSources)
-    .flatMap(source => source.split(',').map(s => s.trim()));
+      .flatMap(source => source.split(',').map(s => s.trim()));
 
     otherChunks.forEach((chunk) => {
       const uniqueEvents = new Set(); // Track unique event-source combinations
@@ -495,7 +495,7 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
           if ('userAgent' in ccInputObj) {
             matchesUserAgent = userAgent.includes(ccInputObj.userAgent);
           }
-          if ('checkpoint' in ccInputObj && (event.checkpoint == 'click' || event.checkpoint == 'viewblock')) {  
+          if ('checkpoint' in ccInputObj && (event.checkpoint == 'click' || event.checkpoint == 'viewblock')) {
             matchesCheckpoint = ccInputObj.checkpoint.includes(event.checkpoint);
           }
           else {
@@ -526,73 +526,148 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
                 data.viewedblocks[event.source] += weight;
               }
             }
-
           }
         }
-
       }
     });
-
   }
   if (sourceKeys.length <= 1) {
-    curChunk.chunks.forEach((chunk) => {
-      const uniqueEvents = new Set(); // Track unique event-source combinations
-      const weight = chunk.weight;
-      const userAgent = chunk.userAgent;
+    otherSources = sourceKeys
+      .filter(key => key.includes('click') || key.includes('viewblock'))
+      .map(key => ccInputObj[key]);
+    const sourceArray = Object.values(otherSources)
+      .flatMap(source => source.split(',').map(s => s.trim()));
+    if (sourceArray.length >= 2) {
+      otherSources = sourceKeys
+        .filter(key => key.includes('click') || key.includes('viewblock'))
+        .map(key => ccInputObj[key]);
 
-      let matchesUserAgent = true;
-      let matchesCheckpoint = true;
-      let matchesSource = true;
-      let matchesTarget = true;
-      for (let i = 0; i < chunk.events.length; i++) {
-        const event = chunk.events[i];
-        const eventSourceCombo = `${event.checkpoint}:${event.source}`;
-        if (!uniqueEvents.has(eventSourceCombo)) {
-          uniqueEvents.add(eventSourceCombo); // Mark this event-source combo as seen
-          matchesUserAgent = true;
-          matchesCheckpoint = true;
-          matchesSource = true;
-          matchesTarget = true;
+      console.log(otherSources, "otherSources alone");
 
-          // Check if the ccInput variables are present and set match flags accordingly
-          if ('userAgent' in ccInputObj) {
-            matchesUserAgent = userAgent.includes(ccInputObj.userAgent);
-          }
-          if ('checkpoint' in ccInputObj && (event.checkpoint == 'click' || event.checkpoint == 'viewblock')) {  
-            matchesCheckpoint = ccInputObj.checkpoint.includes(event.checkpoint);
-          }
-          const sourceKey = Object.keys(ccInputObj).find(key => key.includes('source'));
-          if (sourceKey) {
-            matchesSource = event.source == ccInputObj[sourceKey];
-          }
 
-          // Check for any key containing "target" and compare
-          const targetKey = Object.keys(ccInputObj).find(key => key.includes('target'));
-          if (targetKey) {
-            matchesTarget = event.target == ccInputObj[targetKey];
-          }
+      console.log("inside no enter")
+      const otherChunks = sliceChunksWithClickAndSource(curChunk.chunks, otherSources);
+      console.log(otherChunks, "otherChunks");
 
-          if (matchesUserAgent && matchesCheckpoint && matchesSource && matchesTarget) {
-            if (event.checkpoint == 'click' || event.checkpoint == 'convert' || event.checkpoint == 'formsubmit') {
-              if (data.metrics[event.source] == undefined) {
-                data.metrics[event.source] = { "clicks": 0, "converts": 0, "formsubmits": 0, "targets": {} };
-                updateChunk(event, data.metrics[event.source], weight);
-              } else {
-                updateChunk(event, data.metrics[event.source], weight);
-              }
-            } else if (event.checkpoint == 'viewblock') {
-              if (data.viewedblocks[event.source] == undefined) {
-                data.viewedblocks[event.source] = weight;
-              } else {
-                data.viewedblocks[event.source] += weight;
-              }
+      // ccInputObj contains the source keys and values, we turn into it into an array to turn in from one value into many
+
+      otherChunks.forEach((chunk) => {
+        const uniqueEvents = new Set(); // Track unique event-source combinations
+        const weight = chunk.weight;
+        const userAgent = chunk.userAgent;
+
+        let matchesUserAgent = true;
+        let matchesTarget = true;
+        let matchesCheckpoint = true;
+        let matchesSource = true;
+        for (let i = 0; i < chunk.events.length; i++) {
+          const event = chunk.events[i];
+          const eventSourceCombo = `${event.checkpoint}:${event.source}`;
+          if (!uniqueEvents.has(eventSourceCombo)) {
+            uniqueEvents.add(eventSourceCombo); // Mark this event-source combo as seen
+            matchesUserAgent = true;
+            matchesCheckpoint = true;
+            matchesSource = true;
+            matchesTarget = true;
+
+            // Check if the ccInput variables are present and set match flags accordingly
+            if ('userAgent' in ccInputObj) {
+              matchesUserAgent = userAgent.includes(ccInputObj.userAgent);
+            }
+            if ('checkpoint' in ccInputObj && (event.checkpoint == 'click' || event.checkpoint == 'viewblock')) {
+              matchesCheckpoint = ccInputObj.checkpoint.includes(event.checkpoint);
+            }
+            else {
+              matchesCheckpoint = false;
+            }
+            const sourceKey = Object.keys(ccInputObj).find(key => key.includes('source'));
+            if (sourceKey) {
+              matchesSource = sourceArray.includes(event.source);
             }
 
+            const targetKey = Object.keys(ccInputObj).find(key => key.includes('target'));
+            if (targetKey) {
+              matchesTarget = event.target == ccInputObj[targetKey];
+            }
+            // Process the event if it matches all the criteria that are present
+            if (matchesUserAgent && matchesTarget && matchesCheckpoint && matchesSource) {
+              if (event.checkpoint == 'click' || event.checkpoint == 'convert' || event.checkpoint == 'formsubmit') {
+                if (data.metrics[event.source] == undefined) {
+                  data.metrics[event.source] = { "clicks": 0, "converts": 0, "formsubmits": 0, "targets": {} };
+                  updateChunk(event, data.metrics[event.source], weight);
+                } else {
+                  updateChunk(event, data.metrics[event.source], weight);
+                }
+              } else if (event.checkpoint == 'viewblock') {
+                if (data.viewedblocks[event.source] == undefined) {
+                  data.viewedblocks[event.source] = weight;
+                } else {
+                  data.viewedblocks[event.source] += weight;
+                }
+              }
+            }
           }
         }
+      });
+    }
+    else {
+      curChunk.chunks.forEach((chunk) => {
+        const uniqueEvents = new Set(); // Track unique event-source combinations
+        const weight = chunk.weight;
+        const userAgent = chunk.userAgent;
 
-      }
-    });
+        let matchesUserAgent = true;
+        let matchesCheckpoint = true;
+        let matchesSource = true;
+        let matchesTarget = true;
+        for (let i = 0; i < chunk.events.length; i++) {
+          const event = chunk.events[i];
+          const eventSourceCombo = `${event.checkpoint}:${event.source}`;
+          if (!uniqueEvents.has(eventSourceCombo)) {
+            uniqueEvents.add(eventSourceCombo); // Mark this event-source combo as seen
+            matchesUserAgent = true;
+            matchesCheckpoint = true;
+            matchesSource = true;
+            matchesTarget = true;
+
+            // Check if the ccInput variables are present and set match flags accordingly
+            if ('userAgent' in ccInputObj) {
+              matchesUserAgent = userAgent.includes(ccInputObj.userAgent);
+            }
+            if ('checkpoint' in ccInputObj && (event.checkpoint == 'click' || event.checkpoint == 'viewblock')) {
+              matchesCheckpoint = ccInputObj.checkpoint.includes(event.checkpoint);
+            }
+            const sourceKey = Object.keys(ccInputObj).find(key => key.includes('source'));
+            if (sourceKey) {
+              matchesSource = event.source == ccInputObj[sourceKey];
+            }
+
+            // Check for any key containing "target" and compare
+            const targetKey = Object.keys(ccInputObj).find(key => key.includes('target'));
+            if (targetKey) {
+              matchesTarget = event.target == ccInputObj[targetKey];
+            }
+
+            if (matchesUserAgent && matchesCheckpoint && matchesSource && matchesTarget) {
+              if (event.checkpoint == 'click' || event.checkpoint == 'convert' || event.checkpoint == 'formsubmit') {
+                if (data.metrics[event.source] == undefined) {
+                  data.metrics[event.source] = { "clicks": 0, "converts": 0, "formsubmits": 0, "targets": {} };
+                  updateChunk(event, data.metrics[event.source], weight);
+                } else {
+                  updateChunk(event, data.metrics[event.source], weight);
+                }
+              } else if (event.checkpoint == 'viewblock') {
+                if (data.viewedblocks[event.source] == undefined) {
+                  data.viewedblocks[event.source] = weight;
+                } else {
+                  data.viewedblocks[event.source] += weight;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
   }
   console.log(data, "final data");
   return data;

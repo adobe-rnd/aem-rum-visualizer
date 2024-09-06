@@ -1,5 +1,5 @@
-import { fetchDateRange } from "../common/rum-bundler-client.js";
-import { groupChunksByUrl, sliceChunksWithEnter, sliceChunksWithClickAndSource } from "../common/aggregations.js";
+import { fetchSpecificBundles }  from "rum-bundler-client.js";
+import { groupChunksByUrl, sliceChunksWithEnter, sliceChunksWithClickAndSource } from "aggregations.js";
 
 const actualWebsiteName = 'https://www.petplace.com';
 const backgroundColorLow = 'rgba(255, 0, 0, 0.5)'; // Red
@@ -40,9 +40,9 @@ export async function createRUMVisualizer() {
 export async function decorateVisualizer(overlay) {
   const bar = createVisualizationBar(
     [
-      `Start Date: <input type="date" id="start-date">`,
-      `End Date: <input type="date" id="end-date">`,
-      `Variable: <select id="class-dropdown">
+      `Start Date: <input type="date" id="aem-rum-visualization-start-date">`,
+      `End Date: <input type="date" id="aem-rum-visualization-end-date">`,
+      `Variable: <select id="aem-rum-visualization-class-dropdown">
         <optgroup label="Percentages">
           <option value="CTR">CTR</option>
           <option value="CVR">CVR</option>
@@ -55,18 +55,18 @@ export async function decorateVisualizer(overlay) {
         <optgroup label="Viewed">
           <option value="views">Blocks</option>
       </select>`,
-      `Domain Key: <input type="password" id="domain-key" class="aem-rum-visualization-input-password">`,
-      `Device: <select id="device-dropdown">
+      `Domain Key: <input type="password" id="aem-rum-visualization-domain-key" class="aem-rum-visualization-input-password">`,
+      `Device: <select id="aem-rum-visualization-device-dropdown">
         <option value="all-devices">All</option>
         <option value="desktop">Desktop</option>
         <option value="mobile">Mobile</option>`,
-      `Views: <span id="views">0</span>`,
-      ],
-      [
-      `Click <a href="https://example.com" target="_blank" id="rum-link">here</a> to access RUM Explorer`,
+      `Views: <span id="aem-rum-visualization-views">0</span>`,
+    ],
+    [
+      `Click <a href="https://example.com" target="_blank" id="aem-rum-visualization-rum-link">here</a> to access RUM Explorer`,
       `Please paste custom convert details below from RUM Explorer`,
-      `<textarea name="cc-input" id="cc-input" rows="4" class="aem-rum-visualization-textarea-cc-input"></textarea>`,
-      ]
+      `<textarea name="cc-input" id="aem-rum-visualization-cc-input" rows="4" class="aem-rum-visualization-textarea-cc-input"></textarea>`,
+    ]
   );
   overlay.append(bar);
   return bar;
@@ -92,7 +92,7 @@ function createVisualizationBar(items, ccDisplay) {
     const div = document.createElement('div');
     div.className = 'aem-rum-visualization-bar-element';
     div.innerHTML = item;
-    if (div.querySelector('#class-dropdown')) {
+    if (div.querySelector('#aem-rum-visualization-class-dropdown')) {
       cc.innerHTML += '<span class="hlx-open"></span>';
       div.append(cc);
     }
@@ -104,11 +104,11 @@ function createVisualizationBar(items, ccDisplay) {
   // Add event listeners to bar elements
   submit.addEventListener('click', (event) => {
     const overlay = getOverlay();
-    const startDate = overlay.querySelector('#start-date').value;
-    const endDate = overlay.querySelector('#end-date').value;
-    const variable = overlay.querySelector('#class-dropdown').value;
-    const domainKey = overlay.querySelector('#domain-key').value;
-    const device = overlay.querySelector('#device-dropdown').value;
+    const startDate = overlay.querySelector('#aem-rum-visualization-start-date').value;
+    const endDate = overlay.querySelector('#aem-rum-visualization-end-date').value;
+    const variable = overlay.querySelector('#aem-rum-visualization-class-dropdown').value;
+    const domainKey = overlay.querySelector('#aem-rum-visualization-domain-key').value;
+    const device = overlay.querySelector('#aem-rum-visualization-device-dropdown').value;
 
     const allData = {
       startDate,
@@ -142,7 +142,7 @@ function createVisualizationBar(items, ccDisplay) {
     }
   });
 
-  const classDropdown = bar.querySelector('#class-dropdown');
+  const classDropdown = bar.querySelector('#aem-rum-visualization-class-dropdown');
   classDropdown.addEventListener('change', (event) => {
     console.log('Class dropdown value changed to:', event.target.value);
     if (event.target.value == 'cc') {
@@ -158,39 +158,54 @@ function createVisualizationBar(items, ccDisplay) {
   });
 
   cc.addEventListener('click', (event) => {
-      console.log("cc clicked");
-      popup.classList.toggle('hlx-hidden');
-      generateRumExplorerUrl();
+    console.log("cc clicked");
+    popup.classList.toggle('hlx-hidden');
+    generateRumExplorerUrl();
   });
-  
+
   ccSubmit.addEventListener('click', (event) => {
-      console.log("cc submit clicked");
-      const overlay = getOverlay();
-      const startDate = overlay.querySelector('#start-date').value;
-      const endDate = overlay.querySelector('#end-date').value;
-      const domainKey = overlay.querySelector('#domain-key').value;
-      const ccInput = overlay.querySelector('#cc-input').value;
+    console.log("cc submit clicked");
+    const overlay = getOverlay();
+    const startDate = overlay.querySelector('#aem-rum-visualization-start-date').value;
+    const endDate = overlay.querySelector('#aem-rum-visualization-end-date').value;
+    const domainKey = overlay.querySelector('#aem-rum-visualization-domain-key').value;
+    const ccInput = overlay.querySelector('#aem-rum-visualization-cc-input').value;
 
-      const allData = {
-        startDate,
-        endDate,
-        domainKey,
-        ccInput
-      };
-      console.log(allData, "cc data"); // data inputted by user
-      ccPageMetrics(startDate, endDate, domainKey, ccInput);
+    const allData = {
+      startDate,
+      endDate,
+      domainKey,
+      ccInput
+    };
+    console.log(allData, "cc data"); // data inputted by user
 
-      console.log("updated cc page metrics");
+    // Reads ccInput string and converts it to an array
+    const ccInputLines = ccInput.split('\n');
+    const ccInputObj = {};
+    ccInputLines.forEach(line => {
+      const [key, ...rest] = line.split(':').map(item => item.trim());
+      const value = rest.join(':'); // Join the rest of the parts back with ':'
+      if (ccInputObj.hasOwnProperty(key)) {
+        ccInputObj[key] += `, ${value}`;
+      } else {
+        ccInputObj[key] = value;
+      }
+    });
+    console.log(ccInputObj, "ccInputObj");
+    updateCCPageMetrics(startDate, endDate, domainKey, ccInputObj);
+
+    console.log("updated cc page metrics");
   });
   return bar;
 }
 
-// Creates visuaization/heatmap based on user input
+// Creates visualization/heatmap based on user input
 async function updatePageMetrics(startDate, endDate, variable, domainKey, device) {
   try {
     const allData = await pageMetrics(startDate, endDate, domainKey, device);
+    console.log(allData.views, "views");
     const overlay = getOverlay();
-    const viewsElement = overlay.querySelector('#views');
+    const viewsElement = overlay.querySelector('#aem-rum-visualization-views');
     viewsElement.textContent = allData.views;
     viewsElement.style.fontWeight = 'normal'; // Make text not bold
     if (allData == undefined) {
@@ -205,11 +220,9 @@ async function updatePageMetrics(startDate, endDate, variable, domainKey, device
     else {
       curCounts = allData.viewedblocks;
     }
-    //
     console.log(curCounts, "curCounts", variable)
-    //
 
-    // removes old ones
+    // removes previous overlays
     document.querySelectorAll('.heat-overlay').forEach(overlay => overlay.remove());
 
     let percentTrigger = false;
@@ -219,12 +232,12 @@ async function updatePageMetrics(startDate, endDate, variable, domainKey, device
 
     Object.entries(curCounts).forEach(([selector, count]) => {
       if (!isValidSelector(selector)) {
-        console.log('Invalid selector:', selector);
+        // console.log('Invalid selector:', selector);
         return;
       }
       const elements = document.querySelectorAll(selector);
       if (elements.length == 0) {
-        console.log('No elements found for selector:', selector);
+        // console.log('No elements found for selector:', selector);
         return;
       }
       console.log({ elements, count, selector }, "elements, count, selector")
@@ -241,22 +254,15 @@ async function updatePageMetrics(startDate, endDate, variable, domainKey, device
         }
         overlay.classList.add('heat-overlay');
         element.style.overflow = 'visible'; // Allow text to overflow
-        element.appendChild(overlay);
-        const children = element.children;
-        // Iterate over the children and print each one
-        for (let i = 0; i < children.length; i++) {
-          console.log(children[i], "child");
-        }
-        console.log("end of cur child")
-        //
-        const rect = overlay.getBoundingClientRect();
-        console.log(`Overlay details - Width: ${rect.width}, Height: ${rect.height}, Top: ${rect.top}, Left: ${rect.left}`);
+        element.append(overlay);
+        // const rect = overlay.getBoundingClientRect();
+        // console.log(`Overlay details - Width: ${rect.width}, Height: ${rect.height}, Top: ${rect.top}, Left: ${rect.left}`);
         //
       });
     });
-      console.log("my overlay is here and later deleted :(")
+    // //
   } catch (error) {
-    console.error('Error fetching page metrics:', error);
+    console.error(error);
   }
 }
 
@@ -277,7 +283,7 @@ export async function pageMetrics(startDate, endDate, domainKey, device) {
   const hostname = getMainWebsiteName(updatedUrl);
   console.log(hostname, "hostname");
 
-  const allChunks = await fetchDateRange(hostname, startDate, endDate, domainKey);
+  const allChunks = await fetchSpecificBundles(hostname, startDate, endDate, domainKey);
   if (allChunks == undefined) {
     console.error("Invalid dates, please try again");
     return;
@@ -294,11 +300,10 @@ export async function pageMetrics(startDate, endDate, domainKey, device) {
   }
   data.views = chunkURL[updatedUrl].pageview;
 
-  console.log(curChunk, "curChunk");
-  console.log(data.views, "views");
+  console.log(curChunk, "curChunk", data.views);
 
   curChunk.chunks.forEach((chunk) => {
-    const uniqueEvents = new Set(); // Track unique event-source combinations
+    const uniqueEvents = new Set(); // Track unique event-source combinations, makes sure there are no dupes
     const weight = chunk.weight;
     chunk.events.forEach((event) => {
       const eventSourceCombo = `${event.checkpoint}:${event.source}`;
@@ -327,7 +332,81 @@ export async function pageMetrics(startDate, endDate, domainKey, device) {
   return data;
 }
 
-export async function ccPageMetrics(startDate, endDate, domainKey, ccInput) {
+async function updateCCPageMetrics(startDate, endDate, domainKey, ccInput) {
+  try {
+    const data = await ccPageMetrics(startDate, endDate, domainKey, ccInput);
+    const overlay = getOverlay();
+    const viewsElement = overlay.querySelector('#aem-rum-visualization-views');
+    viewsElement.textContent = data.views;
+    viewsElement.style.fontWeight = 'normal'; // Make text not bold
+    if (data == undefined) {
+      console.error("Error fetching page metrics");
+      return;
+    }
+    let curCounts;
+    // this will not account for other stuff thats not clicks or viewblocks
+    const checkpoint = ccInput.checkpoint;
+    const variable = checkpoint.includes('click') ? 'click' : checkpoint.includes('viewblock') ? 'viewblock' : null;
+    console.log(variable, "variable yes ");
+    if (variable != "viewblock") {
+      const allMetrics = data.metrics;
+      curCounts = findVariable(variable, allMetrics);
+    }
+    else {
+      curCounts = data.viewedblocks;
+    }
+    //
+    console.log(curCounts, "curCounts", variable)
+    //
+  
+    // removes old ones
+    document.querySelectorAll('.heat-overlay').forEach(overlay => overlay.remove());
+  
+    let percentTrigger = true;
+  
+    Object.entries(curCounts).forEach(([selector, count]) => {
+      if (!isValidSelector(selector)) {
+        console.log('Invalid selector:', selector);
+        return;
+      }
+      const elements = document.querySelectorAll(selector);
+      if (elements.length == 0) {
+        console.log('No elements found for selector:', selector);
+        return;
+      }
+      console.log({ elements, count, selector }, "elements, count, selector")
+      elements.forEach(element => {
+        if (element.querySelector('.heat-overlay')) {
+          console.log('Element already has an overlay:', element);
+          return;
+        }
+        const overlay = createHeatOverlay(count, data.views, percentTrigger);
+        console.log(overlay.textContent, data.views, "overlay")
+  
+        if (window.getComputedStyle(element).position == 'static') {
+          element.style.position = 'relative';
+        }
+        overlay.classList.add('heat-overlay');
+        element.style.overflow = 'visible'; // Allow text to overflow
+        element.appendChild(overlay);
+        const children = element.children;
+        // Iterate over the children and print each one
+        for (let i = 0; i < children.length; i++) {
+          console.log(children[i], "child");
+        }
+        console.log("end of cur child")
+        //
+        const rect = overlay.getBoundingClientRect();
+        console.log(`Overlay details - Width: ${rect.width}, Height: ${rect.height}, Top: ${rect.top}, Left: ${rect.left}`);
+        //
+      });
+    });
+  }
+  catch (error) {
+    console.error(error);
+  }
+}
+export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
   let data = {
     views: null,
     viewedblocks: {},
@@ -336,16 +415,16 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInput) {
 
   const url = window.location.href;
 
-  const websiteName  = actualWebsiteName;
+  const websiteName = actualWebsiteName;
 
   const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName);
 
-  console.log(updatedUrl, "updatedUrl");
+  // console.log(updatedUrl, "updatedUrl");
 
   const hostname = getMainWebsiteName(updatedUrl);
-  console.log(hostname, "hostname");
+  // console.log(hostname, "hostname");
 
-  const allChunks = await fetchDateRange(hostname, startDate, endDate, domainKey);
+  const allChunks = await fetchSpecificBundles(hostname, startDate, endDate, domainKey);
   if (allChunks == undefined) {
     console.error("Invalid dates, please try again");
     return;
@@ -353,7 +432,7 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInput) {
 
   const chunkURL = groupChunksByUrl(allChunks, 0);
 
-  console.log(chunkURL, "chunks by URL (all chunks)");
+  // console.log(chunkURL, "chunks by URL (all chunks)");
 
   const curChunk = chunkURL[updatedUrl];
   if (curChunk == undefined) {
@@ -365,171 +444,159 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInput) {
   console.log(curChunk, "curChunk cc");
   console.log(data.views, "views");
 
-  console.log(ccInput, "ccInput");
 
-  // Reads ccInput string and converts it to an array
-  const ccInputLines = ccInput.split('\n');
-  const ccInputObj = {};
-  ccInputLines.forEach(line => {
-    const [key, ...rest] = line.split(':').map(item => item.trim());
-    const value = rest.join(':'); // Join the rest of the parts back with ':'
-    ccInputObj[key] = value;
-  });
+  let enterSources = [];
+  let otherSources = [];
 
-  console.log(ccInputObj, "ccInputObj", ccInputLines);
-
-  let enterSource = null;
-  let otherSource = null;
-
-  // Check if ccInputObj contains two sources
+  // Check if ccInputObj contains two or more sources
   const sourceKeys = Object.keys(ccInputObj).filter(key => key.includes('source'));
-  if (sourceKeys.length === 2) {
-    enterSource = ccInputObj[sourceKeys.find(key => key.includes('enter'))];
-    otherSource = ccInputObj[sourceKeys.find(key => key.includes('click') || key.includes('viewblock'))];
-  }
-  //console.log(enterSources, otherSources, "enterSources, otherSources");
-  curChunk.chunks.forEach((chunk) => {
-    const uniqueEvents = new Set(); // Track unique event-source combinations
-    const weight = chunk.weight;
-    const userAgent = chunk.userAgent;
+  console.log(sourceKeys, "sourceKeys");
+  // If there are two or more sources, split the sources into enterSources and otherSources
+  if (sourceKeys.length >= 2) {
+    enterSources = sourceKeys
+      .filter(key => key.includes('enter'))
+      .map(key => ccInputObj[key]);
 
-    let matchesUserAgent = true;
-    let matchesCheckpoint = true;
-    let matchesSource = true;
-    let matchesTarget = true;
-    for (let i = 0; i < chunk.events.length; i++) {
-      const event = chunk.events[i];
-      const eventSourceCombo = `${event.checkpoint}:${event.source}`;
-      if (!uniqueEvents.has(eventSourceCombo)) {
-        uniqueEvents.add(eventSourceCombo); // Mark this event-source combo as seen
-        matchesUserAgent = true;
-        matchesCheckpoint = true;
-        matchesSource = true;
-        matchesTarget = true;
+    otherSources = sourceKeys
+      .filter(key => key.includes('click') || key.includes('viewblock'))
+      .map(key => ccInputObj[key]);
 
-        // Check if the ccInput variables are present and set match flags accordingly
-        if ('userAgent' in ccInputObj) {
-          matchesUserAgent = userAgent.includes(ccInputObj.userAgent);
-        }
-        if ('checkpoint' in ccInputObj) {
-          matchesCheckpoint = event.checkpoint == ccInputObj.checkpoint;
-        }
-        const sourceKey = Object.keys(ccInputObj).find(key => key.includes('source'));
-        if (sourceKey) {
-          matchesSource = event.source == ccInputObj[sourceKey];
-        }
+    console.log(enterSources, otherSources, "enterSources, otherSources");
 
-        // Check for any key containing "target" and compare
-        const targetKey = Object.keys(ccInputObj).find(key => key.includes('target'));
-        if (targetKey) {
-          matchesTarget = event.target == ccInputObj[targetKey];
-        }
-        if (enterSource && otherSource) {
-          console.log("adentro de aqui")
-          const enterEvent = chunk.events.find(e => e.checkpoint === 'enter' && e.source === enterSource);
-          const otherEvent = chunk.events.find(e => (e.checkpoint === 'click' || e.checkpoint === 'viewblock') && e.source === otherSource);
+    const enterChunks = sliceChunksWithEnter(curChunk.chunks, enterSources);
+    console.log(enterChunks, "enterChunks");
+    const otherChunks = sliceChunksWithClickAndSource(enterChunks, otherSources);
+    console.log(otherChunks, "otherChunks");
 
-          if (enterEvent && otherEvent && matchesUserAgent && matchesTarget) {
-            if (data.metrics[otherEvent.source] == undefined) {
-              data.metrics[otherEvent.source] = { "clicks": 0, "converts": 0, "formsubmits": 0, "targets": {} };
-              updateChunk(otherEvent, data.metrics[otherEvent.source], weight);
-            } else {
-              updateChunk(otherEvent, data.metrics[otherEvent.source], weight);
-            }
-            break;
+      // ccInputObj contains the source keys and values, we turn into it into an array to turn in from one value into many
+    const sourceArray = Object.values(otherSources)
+    .flatMap(source => source.split(',').map(s => s.trim()));
+
+    otherChunks.forEach((chunk) => {
+      const uniqueEvents = new Set(); // Track unique event-source combinations
+      const weight = chunk.weight;
+      const userAgent = chunk.userAgent;
+
+      let matchesUserAgent = true;
+      let matchesTarget = true;
+      let matchesCheckpoint = true;
+      let matchesSource = true;
+      for (let i = 0; i < chunk.events.length; i++) {
+        const event = chunk.events[i];
+        const eventSourceCombo = `${event.checkpoint}:${event.source}`;
+        if (!uniqueEvents.has(eventSourceCombo)) {
+          uniqueEvents.add(eventSourceCombo); // Mark this event-source combo as seen
+          matchesUserAgent = true;
+          matchesCheckpoint = true;
+          matchesSource = true;
+          matchesTarget = true;
+
+          // Check if the ccInput variables are present and set match flags accordingly
+          if ('userAgent' in ccInputObj) {
+            matchesUserAgent = userAgent.includes(ccInputObj.userAgent);
           }
-        }
-        // Process the event if it matches all the criteria that are present
-        else if (matchesUserAgent && matchesCheckpoint && matchesSource && matchesTarget) {
-          if (event.checkpoint == 'click' || event.checkpoint == 'convert' || event.checkpoint == 'formsubmit') {
-            if (data.metrics[event.source] == undefined) {
-              data.metrics[event.source] = { "clicks": 0, "converts": 0, "formsubmits": 0, "targets": {} };
-              updateChunk(event, data.metrics[event.source], weight);
-            } else {
-              updateChunk(event, data.metrics[event.source], weight);
-            }
-          } else if (event.checkpoint == 'viewblock') {
-            if (data.viewedblocks[event.source] == undefined) {
-              data.viewedblocks[event.source] = weight;
-            } else {
-              data.viewedblocks[event.source] += weight;
-            }
+          if ('checkpoint' in ccInputObj && (event.checkpoint == 'click' || event.checkpoint == 'viewblock')) {  
+            matchesCheckpoint = ccInputObj.checkpoint.includes(event.checkpoint);
+          }
+          else {
+            matchesCheckpoint = false;
+          }
+          const sourceKey = Object.keys(ccInputObj).find(key => key.includes('source'));
+          if (sourceKey) {
+            matchesSource = sourceArray.includes(event.source);
           }
 
+          const targetKey = Object.keys(ccInputObj).find(key => key.includes('target'));
+          if (targetKey) {
+            matchesTarget = event.target == ccInputObj[targetKey];
+          }
+          // Process the event if it matches all the criteria that are present
+          if (matchesUserAgent && matchesTarget && matchesCheckpoint && matchesSource) {
+            if (event.checkpoint == 'click' || event.checkpoint == 'convert' || event.checkpoint == 'formsubmit') {
+              if (data.metrics[event.source] == undefined) {
+                data.metrics[event.source] = { "clicks": 0, "converts": 0, "formsubmits": 0, "targets": {} };
+                updateChunk(event, data.metrics[event.source], weight);
+              } else {
+                updateChunk(event, data.metrics[event.source], weight);
+              }
+            } else if (event.checkpoint == 'viewblock') {
+              if (data.viewedblocks[event.source] == undefined) {
+                data.viewedblocks[event.source] = weight;
+              } else {
+                data.viewedblocks[event.source] += weight;
+              }
+            }
+
+          }
         }
+
       }
-
-    }
-  });
-  console.log(data, "final data");
-  ////
-  const overlay = getOverlay();
-  const viewsElement = overlay.querySelector('#views');
-  viewsElement.textContent = data.views;
-  viewsElement.style.fontWeight = 'normal'; // Make text not bold
-  if (data == undefined) {
-    console.error("Error fetching page metrics");
-    return;
-  }
-  let curCounts;
-  // this will not account for other stuff thats not clicks, forms, or converts
-  const variable = ccInputObj.checkpoint;
-  console.log(variable, "variable yes ");
-  if (variable != "viewblock") {
-    const allMetrics = data.metrics;
-    curCounts = findVariable(variable, allMetrics);
-  }
-  else {
-    curCounts = data.viewedblocks;
-  }
-  //
-  console.log(curCounts, "curCounts", variable)
-  //
-
-  // removes old ones
-  document.querySelectorAll('.heat-overlay').forEach(overlay => overlay.remove());
-
-  let percentTrigger = true;
-
-  Object.entries(curCounts).forEach(([selector, count]) => {
-    if (!isValidSelector(selector)) {
-      console.log('Invalid selector:', selector);
-      return;
-    }
-    const elements = document.querySelectorAll(selector);
-    if (elements.length == 0) {
-      console.log('No elements found for selector:', selector);
-      return;
-    }
-    console.log({ elements, count, selector }, "elements, count, selector")
-    elements.forEach(element => {
-      if (element.querySelector('.heat-overlay')) {
-        console.log('Element already has an overlay:', element);
-        return;
-      }
-      const overlay = createHeatOverlay(count, data.views, percentTrigger);
-      console.log(overlay.textContent, data.views, "overlay")
-
-      if (window.getComputedStyle(element).position == 'static') {
-        element.style.position = 'relative';
-      }
-      overlay.classList.add('heat-overlay');
-      element.style.overflow = 'visible'; // Allow text to overflow
-      element.appendChild(overlay);
-      const children = element.children;
-      // Iterate over the children and print each one
-      for (let i = 0; i < children.length; i++) {
-        console.log(children[i], "child");
-      }
-      console.log("end of cur child")
-      //
-      const rect = overlay.getBoundingClientRect();
-      console.log(`Overlay details - Width: ${rect.width}, Height: ${rect.height}, Top: ${rect.top}, Left: ${rect.left}`);
-      //
     });
-  });
-}
 
+  }
+  if (sourceKeys.length <= 1) {
+    curChunk.chunks.forEach((chunk) => {
+      const uniqueEvents = new Set(); // Track unique event-source combinations
+      const weight = chunk.weight;
+      const userAgent = chunk.userAgent;
+
+      let matchesUserAgent = true;
+      let matchesCheckpoint = true;
+      let matchesSource = true;
+      let matchesTarget = true;
+      for (let i = 0; i < chunk.events.length; i++) {
+        const event = chunk.events[i];
+        const eventSourceCombo = `${event.checkpoint}:${event.source}`;
+        if (!uniqueEvents.has(eventSourceCombo)) {
+          uniqueEvents.add(eventSourceCombo); // Mark this event-source combo as seen
+          matchesUserAgent = true;
+          matchesCheckpoint = true;
+          matchesSource = true;
+          matchesTarget = true;
+
+          // Check if the ccInput variables are present and set match flags accordingly
+          if ('userAgent' in ccInputObj) {
+            matchesUserAgent = userAgent.includes(ccInputObj.userAgent);
+          }
+          if ('checkpoint' in ccInputObj && (event.checkpoint == 'click' || event.checkpoint == 'viewblock')) {  
+            matchesCheckpoint = ccInputObj.checkpoint.includes(event.checkpoint);
+          }
+          const sourceKey = Object.keys(ccInputObj).find(key => key.includes('source'));
+          if (sourceKey) {
+            matchesSource = event.source == ccInputObj[sourceKey];
+          }
+
+          // Check for any key containing "target" and compare
+          const targetKey = Object.keys(ccInputObj).find(key => key.includes('target'));
+          if (targetKey) {
+            matchesTarget = event.target == ccInputObj[targetKey];
+          }
+
+          if (matchesUserAgent && matchesCheckpoint && matchesSource && matchesTarget) {
+            if (event.checkpoint == 'click' || event.checkpoint == 'convert' || event.checkpoint == 'formsubmit') {
+              if (data.metrics[event.source] == undefined) {
+                data.metrics[event.source] = { "clicks": 0, "converts": 0, "formsubmits": 0, "targets": {} };
+                updateChunk(event, data.metrics[event.source], weight);
+              } else {
+                updateChunk(event, data.metrics[event.source], weight);
+              }
+            } else if (event.checkpoint == 'viewblock') {
+              if (data.viewedblocks[event.source] == undefined) {
+                data.viewedblocks[event.source] = weight;
+              } else {
+                data.viewedblocks[event.source] += weight;
+              }
+            }
+
+          }
+        }
+
+      }
+    });
+  }
+  console.log(data, "final data");
+  return data;
+}
 
 function createHeatOverlay(count, total, percentTrigger) {
   const overlay = document.createElement('div');
@@ -634,7 +701,7 @@ function generateRumExplorerUrl() {
   const url = window.location.href;
   const websiteName = actualWebsiteName
   const simpleWebsiteName = websiteName.replace(/^https?:\/\//, '');
-  const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName );
+  const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName);
   let encodedUrl = updatedUrl;
   const replacements = { ':': '%3A', '/': '%2F' };
   for (const [key, value] of Object.entries(replacements)) {
@@ -642,9 +709,9 @@ function generateRumExplorerUrl() {
   }
   const overlay = getOverlay();
   const rumExplorer = 'https://www.aem.live/tools/oversight/explorer.html?domain=' +
-    simpleWebsiteName + '&url=' + encodedUrl + '&domainkey=' + overlay.querySelector('#domain-key').value;
+    simpleWebsiteName + '&url=' + encodedUrl + '&domainkey=' + overlay.querySelector('#aem-rum-visualization-domain-key').value;
   console.log(rumExplorer, "rum url");
-  const rumLinkElement = overlay.querySelector('#rum-link');
+  const rumLinkElement = overlay.querySelector('#aem-rum-visualization-rum-link');
   console.log(rumLinkElement, "rumLinkElement");
   rumLinkElement.href = rumExplorer;
 }

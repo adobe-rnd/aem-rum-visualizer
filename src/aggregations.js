@@ -80,18 +80,44 @@ function sliceChunksWithClick(chunks) {
   return chunks.filter((chunk) => chunk.events.find((event) => event.checkpoint === 'click'));
 }
 
-function sliceChunksWithEnter(chunks, source) {
-  return chunks.filter((chunk) => 
-    chunk.events.some((event) => event.checkpoint === 'enter' && event.source === source)
-  );
+function sliceChunksWithEnter(chunks, sources) {
+  const sourceArray = Object.values(sources)
+    .flatMap(source => source.split(',').map(s => s.trim()));
+  const filteredChunks = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    for (let j = 0; j < chunk.events.length; j++) {
+      const event = chunk.events[j];
+      if (event.checkpoint === 'enter' && sourceArray.includes(event.source)) {
+        filteredChunks.push(chunk);
+        break; // Move to the next chunk
+      }
+    }
+  }
+
+  return filteredChunks;
 }
 
-function sliceChunksWithClickAndSource(chunks, source) {
-  return chunks.filter((chunk) => 
-    chunk.events.some((event) => event.checkpoint === 'click' && event.source === source)
-  );
-}
+function sliceChunksWithClickAndSource(chunks, sources) {
+  const sourceArray = Object.values(sources)
+    .flatMap(source => source.split(',').map(s => s.trim()));
+  const filteredChunks = [];
+  console.log(sourceArray, sources, "sources");
 
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    for (let j = 0; j < chunk.events.length; j++) {
+      const event = chunk.events[j];
+      if ((event.checkpoint === 'click' || event.checkpoint === 'viewblock') && sourceArray.includes(event.source)) {
+        filteredChunks.push(chunk);
+        break; // Move to the next chunk
+      }
+    }
+  }
+
+  return filteredChunks;
+}
 function getCheckpointsCount(chunks) {
   const checkpoints = {};
   chunks.flatMap((chunk) => chunk.events)

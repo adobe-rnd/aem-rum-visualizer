@@ -19,7 +19,7 @@ Add the following lines to config.json inside tools/sidekick
       "event": "visualizer"
     }
 ```
-- Update the actualWebsiteName variable inside pageMetrics() in index.js to the URL of the site you are using
+- Update the actualWebsiteName variable at the top of ndex.js to the URL of the site you are using
 ``` js
  const actualWebsiteName = 'https://main--wknd--hlxsites.hlx.page/';
 ```

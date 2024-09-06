@@ -73,10 +73,35 @@ async function fetchLastMonth(domain, checkpoints) {
 
 /////
 /////
-async function fetchSpecificBundles(domain, interval, endDate, key, checkpoints) {
+async function fetchSpecificBundles(domain, startDate, endDate, domainKey, checkpoints)  {
+  // Date range calculations
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const currentDate = new Date();
+
+  if (start > currentDate) {
+    console.error("Start date cannot be in the future.");
+    return;
+  }
+  if (end > currentDate) {
+    console.error("End date cannot be in the future.");
+    return;
+  }
+
+  // Check if start date is at least one day before end date
+  const millisecondsPerDay = 1000 * 60 * 60 * 24;
+  if ((end - start) < millisecondsPerDay) {
+    console.error("Start date must be at least one day before end date.");
+    return;
+  }
+
+  const change = end - start;
+  const range = change / millisecondsPerDay;
+
+  //
+  // RUM bundle fetching done here
   const BATCH_SIZE = 10;
   const HOURS = 24;
-  const domainKey = key // insert petplace domain key here
   const chunks = [];
   const urls = [];
 
@@ -85,11 +110,11 @@ async function fetchSpecificBundles(domain, interval, endDate, key, checkpoints)
 
   const today = date;
   ////
-  console.log(today, "today's date");
-  console.log(interval, "date range");
+  // console.log(today, "today's date");
+  // console.log(range, "date range");
   ////
 
-  for (let i = 0; i < interval; i++) {
+  for (let i = 0; i < range; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
 
@@ -135,36 +160,8 @@ async function fetchSpecificBundles(domain, interval, endDate, key, checkpoints)
   return chunks.flatMap((chunk) => chunk.rumBundles);
 }
 
-async function fetchDateRange(domain, startDate, endDate, domainKey, checkpoints) {
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const currentDate = new Date();
-
-  if (start > currentDate) {
-    console.error("Start date cannot be in the future.");
-    return;
-  }
-  if (end > currentDate) {
-    console.error("End date cannot be in the future.");
-    return;
-  }
-
-  // Check if start date is at least one day before end date
-  const millisecondsPerDay = 1000 * 60 * 60 * 24;
-  if ((end - start) < millisecondsPerDay) {
-    console.error("Start date must be at least one day before end date.");
-    return;
-  }
-
-  const change = end - start;
-  const range = change / millisecondsPerDay;
-  return fetchSpecificBundles(domain, range, endDate, domainKey, checkpoints);
-}
-
 export {
   fetchLastMonth,
   fetchBundles,
-  fetchDateRange,
   fetchSpecificBundles,
 }

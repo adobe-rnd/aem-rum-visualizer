@@ -240,6 +240,10 @@ export async function pageMetrics(startDate, endDate, domainKey, device) {
     viewedblocks: {},
     metrics: {}
   };
+  if (!startDate || !endDate) {
+    console.error("Start date and end date must be provided.");
+    return;
+  }
 
   const url = window.location.href;
   const websiteName = actualWebsiteName;
@@ -350,6 +354,11 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
     metrics: {}
   };
 
+  if (!startDate || !endDate) {
+    console.error("Start date and end date must be provided.");
+    return;
+  }
+  
   const url = window.location.href;
   const websiteName = actualWebsiteName;
   const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName);

@@ -73,7 +73,7 @@ async function fetchLastMonth(domain, checkpoints) {
 
 /////
 /////
-async function fetchSpecificBundles(domain, startDate, endDate, domainKey, checkpoints)  {
+async function fetchSpecificBundles(domain, startDate, endDate, domainKey, checkpoints, url)  {
   // Date range calculations
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -144,11 +144,18 @@ async function fetchSpecificBundles(domain, startDate, endDate, domainKey, check
       start -= BATCH_SIZE;
     }
     if (!error) {
-      if(checkpoints) {
-        for (const bundle of batchBundles) {
-          // filter the events inside the bundle.rumBundles based on the checkpoints and return the updated rumBundles
+      for (const bundle of batchBundles) {
+        // filter the events inside the bundle.rumBundles based on the checkpoints and return the updated rumBundles
+        if (url) {
+          bundle.rumBundles = bundle.rumBundles.filter((rumBundle) =>
+            rumBundle.url.includes(url)
+          );
+        }
+        if (checkpoints) {
           bundle.rumBundles = bundle.rumBundles.map((rumBundle) => {
-            rumBundle.events = rumBundle.events.filter((event) => checkpoints.includes(event.checkpoint));
+            rumBundle.events = rumBundle.events.filter((event) =>
+              checkpoints.includes(event.checkpoint)
+            );
             return rumBundle;
           });
         }

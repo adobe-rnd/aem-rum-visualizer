@@ -8,7 +8,8 @@ import { createRUMVisualizer } from "index.js";
 ```
 - Add the following line to the end of the same file
 ``` js
-createRUMVisualizer();
+createRUMVisualizer(siteName);
+ex: createRUMVisualizer('https://www.adobe.com');
 ```
 Add the following lines to config.json inside tools/sidekick
 ``` js

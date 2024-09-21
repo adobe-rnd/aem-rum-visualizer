@@ -1,16 +1,17 @@
-import { fetchSpecificBundles }  from "rum-bundler-client.js";
-import { groupChunksByUrl, sliceChunksWithEnter, sliceChunksWithClickAndSource } from "aggregations.js";
+import { fetchSpecificBundles }  from "./rum-bundler-client.js";
+import { groupChunksByUrl, sliceChunksWithEnter, sliceChunksWithClickAndSource } from "./aggregations.js";
 
-const actualWebsiteName = 'https://www.petplace.com';
+let actualWebsiteName = '';
 const backgroundColorLow = 'rgba(255, 0, 0, 0.5)'; // Red
 const backgroundColorMedium = 'rgba(0, 213, 255, 0.5)'; // Blue
 const backgroundColorHigh = 'rgba(0, 255, 65, 0.5)'; // Green
 const textColor = 'white'; // Overlay percentage text color
 
 // Connects to Sidekick and enables/disables the visualizer; first function to be called, placed inside scripts.js
-export async function createRUMVisualizer() {
+export default async function createRUMVisualizer(siteAddress) {
   let bar = null;
   let on = false;
+  actualWebsiteName = siteAddress.endsWith('/') ? siteAddress.slice(0, -1) : siteAddress;
   const visualizer = async ({ }) => {
     if (on) {
       on = false;
@@ -247,10 +248,18 @@ export async function pageMetrics(startDate, endDate, domainKey, device) {
 
   const url = window.location.href;
   const websiteName = actualWebsiteName;
-  const updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName);
+  let updatedUrl = url.replace(/^(?:https?:\/\/)?(?:localhost(:\d+)?)/, websiteName);
+  updatedUrl = updatedUrl.endsWith(".html") ? updatedUrl : updatedUrl + ".html";
   const hostname = getMainWebsiteName(updatedUrl);
 
-  const allChunks = await fetchSpecificBundles(hostname, startDate, endDate, domainKey);
+  const allChunks = await fetchSpecificBundles(
+    hostname,
+    startDate,
+    endDate,
+    domainKey,
+    ['click', 'convert', 'formsubmit', 'viewblock', 'enter'],
+    updatedUrl,
+  );
   if (allChunks == undefined) {
     console.error("Invalid dates, please try again");
     return;

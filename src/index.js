@@ -223,7 +223,7 @@ async function updatePageMetrics(startDate, endDate, variable, domainKey, device
     if (variable == "CTR" || variable == "CVR" || variable == "FSR" || variable == "views") {
       percentTrigger = true;
     }
-
+    window.defaultSelector.count = 0;
     Object.entries(curCounts).forEach(([selector, count]) => {
       if (!isValidSelector(selector)) {
         return;

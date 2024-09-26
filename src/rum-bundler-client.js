@@ -74,6 +74,10 @@ async function fetchLastMonth(domain, checkpoints) {
 /////
 /////
 async function fetchSpecificBundles(domain, startDate, endDate, domainKey, checkpoints, url)  {
+  // check in cache
+  if (window.rumData && window.rumData.startDate === startDate && window.rumData.endDate === endDate) {
+    return window.rumData.filteredChunks;
+  }
   // Date range calculations
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -164,7 +168,14 @@ async function fetchSpecificBundles(domain, startDate, endDate, domainKey, check
     }
   }
   console.log("fetched all bundles");
-  return chunks.flatMap((chunk) => chunk.rumBundles);
+  const filteredChunks = chunks.flatMap((chunk) => chunk.rumBundles);
+  // cache the data of filtered bundles
+  window.rumData = {
+    startDate,
+    endDate,
+    filteredChunks,
+  };
+  return filteredChunks;
 }
 
 export {

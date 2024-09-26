@@ -11,6 +11,11 @@ import { createRUMVisualizer } from "index.js";
 createRUMVisualizer(siteName);
 ex: createRUMVisualizer('https://www.adobe.com');
 ```
+**NOTE**: If the selector from RUM data isn't found on the page, those metrics will not be rendered on the page, to attribute all those metrics to a default selector, you can pass an optional default selector like below
+``` js
+createRUMVisualizer(siteName, defaultSelector);
+ex: createRUMVisualizer('https://www.adobe.com', 'a.button.hero');
+```
 Add the following lines to config.json inside tools/sidekick
 ``` js
     {

@@ -5,13 +5,18 @@ let actualWebsiteName = '';
 const backgroundColorLow = 'rgba(255, 0, 0, 0.5)'; // Red
 const backgroundColorMedium = 'rgba(0, 213, 255, 0.5)'; // Blue
 const backgroundColorHigh = 'rgba(0, 255, 65, 0.5)'; // Green
+const mappingColor = 'rgba(128, 128, 128, 0.5)'; // gray
 const textColor = 'white'; // Overlay percentage text color
 
 // Connects to Sidekick and enables/disables the visualizer; first function to be called, placed inside scripts.js
-export default async function createRUMVisualizer(siteAddress) {
+export default async function createRUMVisualizer(siteAddress, defaultSelector) {
   let bar = null;
   let on = false;
   actualWebsiteName = siteAddress.endsWith('/') ? siteAddress.slice(0, -1) : siteAddress;
+  window.defaultSelector = {
+    selector: defaultSelector,
+    count:0
+  };
   const visualizer = async ({ }) => {
     if (on) {
       on = false;
@@ -175,6 +180,21 @@ function createVisualizationBar(items, ccDisplay) {
   return bar;
 }
 
+function applyOverlay(element, count, total, percentTrigger, backgroundColor) {
+  if (element.querySelector(".heat-overlay")) {
+    console.log("Element already has an overlay:", element);
+    return;
+  }
+  const overlay = createHeatOverlay(count, total, percentTrigger, backgroundColor);
+
+  if (window.getComputedStyle(element).position == "static") {
+    element.style.position = "relative";
+  }
+  overlay.classList.add("heat-overlay");
+  element.style.overflow = "visible"; // Allow text to overflow
+  element.append(overlay);
+}
+
 // Creates visualization/heatmap based on user input
 async function updatePageMetrics(startDate, endDate, variable, domainKey, device) {
   try {
@@ -210,25 +230,24 @@ async function updatePageMetrics(startDate, endDate, variable, domainKey, device
       }
       const elements = document.querySelectorAll(selector);
       if (elements.length == 0) {
+        // attribute this to defaultSelector if available
+        if (window.defaultSelector) {
+          window.defaultSelector.count += count;
+        }
         return;
       }
       console.log({ elements, count, selector }, "elements, count, selector")
       elements.forEach(element => {
-        if (element.querySelector('.heat-overlay')) {
-          console.log('Element already has an overlay:', element);
-          return;
-        }
-        const overlay = createHeatOverlay(count, allData.views, percentTrigger);
-        console.log(overlay.textContent, allData.views, "overlay")
-
-        if (window.getComputedStyle(element).position == 'static') {
-          element.style.position = 'relative';
-        }
-        overlay.classList.add('heat-overlay');
-        element.style.overflow = 'visible'; // Allow text to overflow
-        element.append(overlay);
+        applyOverlay(element, count, allData.views, percentTrigger);
       });
     });
+    // render the overlay for defaultSelector if any
+    if (window.defaultSelector?.count > 0) {
+      const dSelector = document.querySelector(window.defaultSelector.selector);
+      if (dSelector) {
+        applyOverlay(dSelector, window.defaultSelector.count, allData.views, percentTrigger, mappingColor);
+      }
+    }
   } catch (error) {
     console.error(error);
   }
@@ -338,17 +357,7 @@ async function updateCCPageMetrics(startDate, endDate, domainKey, ccInput) {
         return;
       }
       elements.forEach(element => {
-        if (element.querySelector('.heat-overlay')) {
-          return;
-        }
-        const overlay = createHeatOverlay(count, data.views, percentTrigger);
-
-        if (window.getComputedStyle(element).position == 'static') {
-          element.style.position = 'relative';
-        }
-        overlay.classList.add('heat-overlay');
-        element.style.overflow = 'visible'; // Allow text to overflow
-        element.append(overlay);
+        applyOverlay(element, count, data.views, percentTrigger);
       });
     });
   }
@@ -605,7 +614,7 @@ export async function ccPageMetrics(startDate, endDate, domainKey, ccInputObj) {
   return data;
 }
 
-function createHeatOverlay(count, total, percentTrigger) {
+function createHeatOverlay(count, total, percentTrigger, backgroundColor) {
   const overlay = document.createElement('div');
 
   overlay.style.position = 'absolute';
@@ -630,6 +639,9 @@ function createHeatOverlay(count, total, percentTrigger) {
     overlay.style.backgroundColor = backgroundColorMedium;
   } else {
     overlay.style.backgroundColor = backgroundColorHigh;
+  }
+  if (backgroundColor) {
+    overlay.style.backgroundColor = backgroundColor;
   }
   if (percentTrigger) {
     overlay.textContent = `${percentage} %`;
